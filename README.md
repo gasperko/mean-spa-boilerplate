@@ -1,30 +1,14 @@
-# JSEL (JavaScript Error Log)
+# Mean SPA Boilerplate
 
-A simple JavaScript error logger in server
+A boilerplate of a Single Page Application made with the MEAN stack — Edit
 
 ## TL;DR
 
-### Server
+### Run
 
 ```bash
-git clone git@bitbucket.org:corefront/js-error-log.git
-cd js-error-log
+git clone https://github.com/topogigiovanni/mean-spa-boilerplate.git
+cd mean-spa-boilerplate
 npm install
-node server.js
+npm start
 ```
-
-### Client
-
-```html
-<script>
-	window.JSEL = {
-		url: 'https://example.com/error',
-		type: 'image' // image, ajax
-	};
-</script>
-<script src="jsel.js"></script>
-```
-
-## License
-
-[![MIT Licence](https://img.shields.io/badge/licence-MIT-blue.svg)](https://magno.mit-license.org/2016)
