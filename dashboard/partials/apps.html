@@ -1,0 +1,43 @@
+<div class="container">
+	<div class="panel">
+		<div class="panel-body">
+			<legend>My Apps</legend>
+			<div class="bs-example">
+				<div class="row">
+					<div class="text-right col-xs-3 col-xs-offset-9">
+						<a href="/apps/create" type="button" class="btn btn-primary">Create App</a>
+						<br>
+					</div>
+				</div>
+				<br>
+				<table class="table table-bordered">
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>App Name</th>
+							<th>Allowed Hosts</th>
+							<th width="35%"></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr ng-if="!apps.length">
+							<td colspan="4">
+								<p>No result</p>
+							</td>
+						</tr>
+						<tr ng-repeat="app in apps">
+							<th scope="row" ng-bind="app.appId"></th>
+							<td ng-bind="app.name"></td>
+							<td ng-bind="app.host"></td>
+							<td>
+								<a href="#" ng-click="goToDashboard(app)" type="button" class="btn btn-default">Dashboard</a>
+								<a href="/apps/edit/{{app.appId}}" type="button" class="btn btn-default">Edit</a>
+								<button ng-click="remove(app)" type="button" class="btn btn-danger">Remove</button>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>

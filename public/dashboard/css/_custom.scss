@@ -1,0 +1,21 @@
+table.resp {
+	width: 100%;
+	table-layout:fixed;
+
+	.center{
+		text-align: center;
+	}
+
+	.center-y{
+		vertical-align: middle;
+	}
+}
+
+.break-line{
+	word-wrap:break-word;
+}
+
+.page-header{
+	display: inline-block;
+	width: 100%;
+}

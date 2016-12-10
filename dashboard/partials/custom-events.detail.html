@@ -1,0 +1,8 @@
+<div>
+	<div class="text-right">
+		<button clipboard text="detailedEvent | json" on-copied="btnCopyText = 'Copied!'" on-error="btnCopyText = 'Error!'" class="btn btn-default" ng-bind="btnCopyText || 'Copy to clipboard'"></button>
+		&nbsp;
+		<button class="btn btn-default" ng-click="closeModal()">Close</button>
+	</div>
+	<pre>{{ detailedEvent | json }}</pre>
+</div>
