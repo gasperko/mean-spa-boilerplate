@@ -64,7 +64,7 @@ gulp.task('nodemon', (cb) => {
 			'controllers/*',
 			'models/*',
 		],
-		stdout: false,
+		stdout: true,
 		readable: false,
 	}).on('start', () => {
 
@@ -109,8 +109,8 @@ gulp.task('angular', () => {
 			'app/controllers/*.js',
 			'app/services/*.js'
 		])
-		.pipe(concat('application.js'))
-		.pipe(ngAnnotate())
+		.pipe(concat('application.js').on('error', gulpUtil.log))
+		.pipe(ngAnnotate().on('error', gulpUtil.log))
 		.pipe(gulpif(argv.production, uglify()))
 		.pipe(gulp.dest('public/app/js'));
 
@@ -120,14 +120,16 @@ gulp.task('dashboardAngular', () => {
 
 	return gulp.src([
 			'dashboard/mainAppLink.js',
+			'app/services/account.js',
 			'dashboard/app.js',
 			'dashboard/controllers/*.js',
 			'dashboard/services/*.js',
-			'dashboard/filters/*.js'
+			'dashboard/filters/*.js',
+			'dashboard/directives/*.js'
 		])
-		.pipe(concat('application.js'))
-		.pipe(ngAnnotate())
-		.pipe(gulpif(argv.production, uglify()))
+		.pipe(concat('application.js').on('error', gulpUtil.log))
+		.pipe(ngAnnotate().on('error', gulpUtil.log))
+		.pipe(gulpif(argv.production, uglify().on('error', gulpUtil.log)))
 		.pipe(gulp.dest('public/dashboard/js'));
 
 });

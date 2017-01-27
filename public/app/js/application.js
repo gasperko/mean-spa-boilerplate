@@ -91,12 +91,13 @@ angular.module('MainApp', ['ngRoute', 'satellizer', 'ngCookies'])
         }
     }])
     .run(["$rootScope", "$window", "User", "$auth", function($rootScope, $window, User, $auth) {
+        
         if ($window.localStorage.user) {
             $rootScope.currentUser = JSON.parse($window.localStorage.user);
         }
 
         $rootScope.$on('user/logged', function(){
-            console.info('on user/logged');
+            console.debug('user/logged');
             User.setToken($auth.getToken());
         });
 
@@ -104,7 +105,6 @@ angular.module('MainApp', ['ngRoute', 'satellizer', 'ngCookies'])
             $rootScope.$broadcast('user/logged');
         }
         
-        console.debug(User, $auth.getToken());
     }]);
 angular.module('MainApp')
 	.controller('AppsCreateCtrl', ["$scope", "$rootScope", "$location", "$window", "$auth", "App", function($scope, $rootScope, $location, $window, $auth, App) {
@@ -298,7 +298,7 @@ angular.module('MainApp')
   }]);
 
 angular.module('MainApp')
-    .controller('HeaderCtrl', ["$scope", "$location", "$window", "$auth", "User", function($scope, $location, $window, $auth, User) {
+    .controller('HeaderCtrl', ["$scope", "$location", "$window", "$auth", "User", "Account", function($scope, $location, $window, $auth, User, Account) {
         
         $scope.isActive = function(viewLocation) {
             return viewLocation === $location.path();
@@ -309,11 +309,10 @@ angular.module('MainApp')
         };
 
         $scope.logout = function() {
-            $auth.logout();
-            delete $window.localStorage.user;
-            User.setToken('');
+            Account.logout();
             $location.path('/');
         };
+        
     }]);
 angular.module('MainApp')
   .controller('LoginCtrl', ["$scope", "$rootScope", "$location", "$window", "$auth", function($scope, $rootScope, $location, $window, $auth) {
@@ -323,7 +322,7 @@ angular.module('MainApp')
           $rootScope.$broadcast('user/logged');
           $rootScope.currentUser = response.data.user;
           $window.localStorage.user = JSON.stringify(response.data.user);
-          $location.path('/account');
+          $location.path('/apps');
         })
         .catch(function(response) {
           $scope.messages = {
@@ -430,22 +429,21 @@ angular.module('MainApp')
         };
     }]);
 angular.module('MainApp')
-  .controller('ResetCtrl', ["$scope", "Account", function($scope, Account) {
-    $scope.resetPassword = function() {
-      Account.resetPassword($scope.user)
-        .then(function(response) {
-          $scope.messages = {
-            success: [response.data]
-          };
-        })
-        .catch(function(response) {
-          $scope.messages = {
-            error: Array.isArray(response.data) ? response.data : [response.data]
-          };
-        });
-    }
-  }]);
-
+    .controller('ResetCtrl', ["$scope", "$routeParams", "Account", function($scope, $routeParams, Account) {
+        $scope.resetPassword = function() {
+            Account.resetPassword($routeParams.token, $scope.user)
+                .then(function(response) {
+                    $scope.messages = {
+                        success: [response.data]
+                    };
+                })
+                .catch(function(response) {
+                    $scope.messages = {
+                        error: Array.isArray(response.data) ? response.data : [response.data]
+                    };
+                });
+        }
+    }]);
 angular.module('MainApp')
   .controller('SignupCtrl', ["$scope", "$rootScope", "$location", "$window", "$auth", function($scope, $rootScope, $location, $window, $auth) {
     $scope.signup = function() {
@@ -455,7 +453,7 @@ angular.module('MainApp')
           $rootScope.$broadcast('user/logged');
           $rootScope.currentUser = response.data.user;
           $window.localStorage.user = JSON.stringify(response.data.user);
-          $location.path('/');
+          $location.path('/apps');
         })
         .catch(function(response) {
           $scope.messages = {
@@ -486,25 +484,32 @@ angular.module('MainApp')
     };
   }]);
 angular.module('MainApp')
-  .factory('Account', ["$http", function($http) {
-    return {
-      updateProfile: function(data) {
-        return $http.put('/account', data);
-      },
-      changePassword: function(data) {
-        return $http.put('/account', data);
-      },
-      deleteAccount: function() {
-        return $http.delete('/account');
-      },
-      forgotPassword: function(data) {
-        return $http.post('/forgot', data);
-      },
-      resetPassword: function(data) {
-        return $http.post('/reset', data);
-      }
-    };
-  }]);
+    .factory('Account', ["$http", "$window", "$cookies", "$auth", function($http, $window, $cookies, $auth) {
+        return {
+            updateProfile: function(data) {
+                return $http.put('/account', data);
+            },
+            changePassword: function(data) {
+                return $http.put('/account', data);
+            },
+            deleteAccount: function() {
+                return $http.delete('/account');
+            },
+            forgotPassword: function(data) {
+                return $http.post('/forgot', data);
+            },
+            resetPassword: function(token, data) {
+                return $http.post('/reset/' + token, data);
+            },
+            logout: function() {
+                delete $window.localStorage.user;
+                $cookies.remove('currentAppId', {path: '/'});
+                $cookies.remove('token', {path: '/'});
+                $auth.logout();
+            }
+
+        };
+    }]);
 angular.module('MainApp')
 	.service('App', ["$http", function($http) {
 		return {

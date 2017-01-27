@@ -103,22 +103,21 @@ exports.appEditPost = function(req, res, next) {
        	app.name = req.body.name;
        	app.host = req.body.host;
 
-       	app.save(function(){
-       		app.save(function(err) {
-		    	if(err){
-		    		//console.log('err', err);
-		    		//return;
-		    		res.status(400).send({
-		    			msg: err.message,
-		    			error: err
-		    		});
-		    		return;
-		    	}
-		        res.send({
-		            app: app.toJSON()
-		        });
-		    });
-       	})
+   		app.save(function(err) {
+	    	if(err){
+	    		//console.log('err', err);
+	    		//return;
+	    		res.status(400).send({
+	    			msg: err.message,
+	    			error: err
+	    		});
+	    		return;
+	    	}
+	        res.send({
+	            app: app.toJSON()
+	        });
+	    });
+       	
         
     });
 

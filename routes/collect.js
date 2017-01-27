@@ -18,9 +18,9 @@ function collectRoutes(app) {
 
 	collectRouter.get('/error/:trace', controller.ensureValidApp, controller.errorTrace);
 
-	collectRouter.post('/custom', controller.ensureValidApp, controller.customEvent);
+	collectRouter.post('/custom', controller.ensureValidApp, controller.customEventHook, controller.customEvent);
 
-	collectRouter.get('/custom/:trace', controller.ensureValidApp, controller.customEventTrace);
+	collectRouter.get('/custom/:trace', controller.ensureValidApp, controller.customEventHook, controller.customEventTrace);
 
 	app.use(subdomain('collect', collectRouter));
 

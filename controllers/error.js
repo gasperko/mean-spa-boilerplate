@@ -92,28 +92,30 @@ exports.errorBulk = function(request, response) {
     if (!app || !bulkAction.action) {
         return response.status(400).send();
     }
+    
+    bulkAction.execute(Error, response);
 
-    var query = {};
+ //    var query = {};
 
-    if(!bulkAction.all) {
-    	query = {
-			_id: {
-				$in: bulkAction.data
-			}
-		};
-    }
+ //    if(!bulkAction.all) {
+ //    	query = {
+	// 		_id: {
+	// 			$in: bulkAction.data
+	// 		}
+	// 	};
+ //    }
 
-	Error[bulkAction.action](
-		query,
-		function(err, errors) {
+	// Error[bulkAction.action](
+	// 	query,
+	// 	function(err, errors) {
 
-		if (err) {
-			return response.status(401).send(err);
-		}
+	// 	if (err) {
+	// 		return response.status(401).send(err);
+	// 	}
 
-		response.send(errors);
+	// 	response.send(errors);
 
-	});
+	// });
 
 };
 
@@ -143,5 +145,66 @@ exports.errorDelete = function(request, response) {
             msg: 'Error has been permanently deleted.'
         });
     });
+
+}; 
+
+/**
+ * PUT /error/:id
+ */
+exports.errorPut = function(request, response) {
+	
+	let app = request.app
+
+    if (!app) {
+        return response.status(400).send();
+    }
+
+	Error.update({
+		appId: app.appId,
+        _id: request.params.id
+	}, {
+		'$set': {
+			'_new': false
+		}
+	}, function(err) {
+		if(err){
+    		response.status(400).send({
+    			msg: err.message,
+    			error: err
+    		});
+    		return;
+    	}
+    	
+        response.send();
+	});
+
+};
+
+/**
+ * GET /errors/stats
+ */
+exports.errorStats = function(request, response) {
+	
+	let app = request.app
+
+    if (!app) {
+        return response.status(400).send();
+    }
+
+    Error
+		.count({
+			appId: app.appId,
+			_new: true
+		})
+		.exec(function(err, count){
+			if(err){
+	    		response.status(400).send({
+	    			msg: err.message,
+	    			error: err
+	    		});
+	    		return;
+	    	}    	
+	        response.send({count: count});
+		});
 
 };

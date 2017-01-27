@@ -3,10 +3,10 @@ var mongoosePaginate = require('mongoose-paginate');
 var useragent = require('useragent');
 
 var schemaOptions = {
-  timestamps: false,
-  toJSON: {
-    virtuals: true
-  }
+	timestamps: true,
+	toJSON: {
+		virtuals: true
+	}
 };
 
 var Schema = mongoose.Schema;
@@ -14,7 +14,8 @@ var Schema = mongoose.Schema;
 var errorSchema = new Schema({
 	//_appId: Schema.Types.ObjectId,
 	appId: String,
-	data: Schema.Types.Mixed,
+	_new: Boolean,
+	data: Schema.Types.Mixed
 }, schemaOptions);
 
 errorSchema.plugin(mongoosePaginate);

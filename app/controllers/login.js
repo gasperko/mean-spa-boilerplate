@@ -6,7 +6,7 @@ angular.module('MainApp')
           $rootScope.$broadcast('user/logged');
           $rootScope.currentUser = response.data.user;
           $window.localStorage.user = JSON.stringify(response.data.user);
-          $location.path('/account');
+          $location.path('/apps');
         })
         .catch(function(response) {
           $scope.messages = {

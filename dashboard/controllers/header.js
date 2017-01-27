@@ -1,6 +1,19 @@
 angular.module('DashboardApp')
-    .controller('HeaderCtrl', function($scope, $location, $window, $auth, $routeParams, App) {
+    .controller('HeaderCtrl', function($scope, $rootScope, $location, $window, $auth, $routeParams, App, $interval, $timeout, Dashboard, Account) {
         
+        function fetchStats() {
+
+            Dashboard
+                .stats()
+                .then(function(r) {
+                    console.log('callback 1', r);
+                    if(r && r.data){
+                        $rootScope.stats = r.data;
+                    }
+                });
+
+        }
+
         function init() {
 
             App
@@ -11,6 +24,10 @@ angular.module('DashboardApp')
                         $scope.app = r.data.app;
                     }
                 });
+
+            fetchStats();
+
+            $interval(fetchStats, 20000);
 
         }
 
@@ -23,12 +40,19 @@ angular.module('DashboardApp')
         };
 
         $scope.logout = function() {
-            $auth.logout();
-            delete $window.localStorage.user;
-            $location.path('/');
+
+            Account.logout();
+
+            $timeout(function(){
+                 window.location.replace('/');
+            }, 300);
+
+           
         };
 
         $scope.app = {};
+
+        $rootScope.stats = $rootScope.stats || {};
 
         init();
 

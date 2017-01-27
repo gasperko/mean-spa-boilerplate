@@ -1,0 +1,46 @@
+<div class="modal-body">
+	<div class="row">
+		<div class="col-xs-12">
+			<h3 ng-if="!isEdit">New Trigger</h3>
+			<h3 ng-if="isEdit">Edit Trigger</h3>
+			<div ng-if="messages.error" role="alert" class="alert alert-danger">
+				<div ng-repeat="error in messages.error">{{error.msg}}</div>
+			</div>
+			<div ng-show="!canSave" role="alert" class="alert alert-danger">
+				<div>
+					Fix the errors before continuing.
+				</div>
+			</div>
+			<div ng-show="callbackInvalid" role="alert" class="alert alert-danger">
+				<div ng-bind="validateCallbackError">
+				</div>
+			</div>
+			<form ng-submit="submit(form)" name="form" role="form">
+				<div class="form-group">
+					<label>Name</label>
+					<input required ng-model="trigger.name" class="form-control">
+				</div>
+				<div class="form-group">
+					<label>Event name condition</label>
+					<input required ng-model="trigger.eventName" class="form-control">
+					<p class="help-block">Event name that will trigger the action</p>
+				</div>
+				<div class="checkbox">
+					<label>
+						<input type="checkbox" ng-model="trigger.enabled">
+						Enabled
+					</label>
+				</div>
+				<div class="form-group">
+					<label>Callback function 
+                    </label>
+					<div ui-ace="aceOption" ng-model="trigger.callback"></div>
+				</div>
+				<div class="button-group text-right form-group">
+					<button type="reset" ng-click="close()" class="btn btn-default">Cancel</button>
+					<button ng-disabled="!canSave" type="submit" class="btn btn-success">Save</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

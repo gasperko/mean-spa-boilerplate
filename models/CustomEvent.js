@@ -4,11 +4,12 @@ var mongoosePaginate = require('mongoose-paginate');
 var Schema = mongoose.Schema;
 
 var eventSchema = new Schema({
-  appId: String,
-  eventName: String,
-  data: Schema.Types.Mixed,
+	appId: String,
+	eventName: String,
+	_new: Boolean,
+	data: Schema.Types.Mixed
 }, {
-    timestamps: true
+	timestamps: true
 });
 
 eventSchema.plugin(mongoosePaginate);

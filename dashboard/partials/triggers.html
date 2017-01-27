@@ -1,0 +1,90 @@
+<div class="row">
+	<div class="page-header">
+		<div class="col-xs-6">
+			<h1 class="">
+				Triggers
+			</h1>
+		</div>
+		<div class="col-xs-6">
+			<br>
+			<div class="row form-group">
+				<input class="form-control" placeholder="Search.." ng-model="globalSearchTerm"type="text" />
+			</div>
+		</div>
+	</div>
+</div>
+<!-- /.row -->
+<script type="text/ng-template" id="bulkSelection.html">
+    <input type="checkbox" ng-disabled="vm.selectedAllPages" ng-change="toggleAll()" ng-model="vm.selectedAll" id="select_all" value="" />
+</script>
+<script type="text/ng-template" id="bulkActions.html">
+    <div class="text-center">
+        <div class="btn-group">
+            <button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown">
+                Actions
+                <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu pull-right" role="menu">
+            	<li>
+                	<a ng-click="bulkAction('delete')" href="javascript:void(0);">Delete</a>
+            	</li>
+            </ul>
+        </div>
+    </div>
+</script>
+<div class="row">
+	<div class="col-lg-12">
+		<div class="panel panel-default">
+			<!-- /.panel-heading -->
+			<div class="panel-body">
+				<div class="col-xs-9">
+					<p>Create callback functions for a given Custom Event by handling and processing its parameters</p>
+				</div>
+				<div class="col-xs-3">
+					<div class="text-right">
+						<button ng-click="openCreate()" class="btn btn-success">
+							<i class="fa fa-plus"></i>
+							Trigger
+						</button>
+					</div>
+				</div>
+				<div class="clearfix"></div>
+				<br>
+				<div class="alert alert-warning">
+                    <strong>{{ vm.selectedAllPages ? gridTotal : selecteds.length}}/{{gridTotal}}</strong> items selected.
+                    <a ng-show="!vm.selectedAllPages" ng-click="toggleSelectAllPages($event)" href="#" class="alert-link">Select all pages</a>
+                    <a ng-show="vm.selectedAllPages" ng-click="toggleSelectAllPages($event)" href="#" class="alert-link">Unselect all</a>
+                </div>
+				<table class="resp table table-bordered table-hover" ng-table="grid" show-filter="false">
+					<tr ng-repeat="item in $data">
+						<td header="'bulkSelection.html'" class="center center-y">
+							<input ng-change="toggleSelection(item)" ng-model="item.isSelected" ng-disabled="vm.selectedAllPages" type="checkbox" />
+						</td>
+						<td class="break-line" title="'Name'" sortable="'name'" ng-bind="item.name"></td>
+						<td class="break-line" title="'Event Name'"sortable="'eventName'" ng-bind="item.eventName"></td>
+						<td class="break-line" title="'Created date'" sortable="'createdAt'" ng-bind="item.createdAt | AppDate"></td>
+						<td class="break-line center" title="'Status'" sortable="'item.enabled'">
+							<i class="fa fa-circle status-marker" aria-hidden="true" ng-class="{'enabled': item.enabled}" title="{{ item.enabled ? 'enabled' : 'disabled'}}"></i>
+							&nbsp;
+							{{ item.enabled ? 'enabled' : 'disabled'}}
+						</td>
+						<td header="'bulkActions.html'" class="center center-y">
+							<button title="Show details"type="button" ng-click="showDetails(item)" class="btn btn-sm btn-default">
+								<i class="fa fa-pencil">
+								</i>
+							</button>
+							<button title="Delete" type="button" ng-click="remove(item)" class="btn btn-sm btn-danger">
+								<i class="fa fa-trash">
+								</i>
+							</button>
+						</td>
+					</tr>
+				</table>
+				<!-- /.table-responsive -->
+			</div>
+			<!-- /.panel-body -->
+		</div>
+		<!-- /.panel -->
+	</div>
+	<!-- /.col-lg-12 -->
+</div>

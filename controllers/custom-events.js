@@ -66,31 +66,35 @@ exports.customEventBulk = function(request, response) {
 	let app = request.app
 	let bulkAction = new BulkAction(request.query);
 
+	console.log('bulkAction', bulkAction);
+
     if (!app || !bulkAction.action) {
         return response.status(400).send();
     }
 
-    var query = {};
+  //   var query = {};
 
-    if(!bulkAction.all) {
-    	query = {
-			_id: {
-				$in: bulkAction.data
-			}
-		};
-    }
+  //   if(!bulkAction.all) {
+  //   	query = {
+		// 	_id: {
+		// 		$in: bulkAction.data
+		// 	}
+		// };
+  //   }
 
-	CustomEvent[bulkAction.action](
-		query,
-		function(err, errors) {
+    bulkAction.execute(CustomEvent, response);
 
-		if (err) {
-			return response.status(401).send(err);
-		}
+	// CustomEvent[bulkAction.action](
+	// 	query,
+	// 	function(err, errors) {
 
-		response.send(errors);
+	// 	if (err) {
+	// 		return response.status(401).send(err);
+	// 	}
 
-	});
+	// 	response.send(errors);
+
+	// });
 
 };
 
@@ -121,5 +125,86 @@ exports.customEventsDelete = function(request, response) {
             msg: 'Event has been permanently deleted.'
         });
     });
+
+};
+
+
+
+/**
+ * PUT /custom-event/:id
+ */
+exports.customEventsPut = function(request, response) {
+	
+	let app = request.app
+
+    if (!app) {
+        return response.status(400).send();
+    }
+
+	CustomEvent.update({
+		appId: app.appId,
+        _id: request.params.id
+	}, {
+		'$set': {
+			'_new': false
+		}
+	}, function(err) {
+		if(err){
+    		response.status(400).send({
+    			msg: err.message,
+    			error: err
+    		});
+    		return;
+    	}
+    	
+        response.send();
+	});
+
+	// CustomEvent.remove({
+ //        appId: app.appId,
+ //        _id: request.params.id
+ //    }, function(err) {
+ //    	if(err){
+ //    		response.status(400).send({
+ //    			msg: err.message,
+ //    			error: err
+ //    		});
+ //    		return;
+ //    	}
+    	
+ //        response.send({
+ //            msg: 'Event has been permanently deleted.'
+ //        });
+ //    });
+
+};
+
+
+/**
+ * GET /errors/stats
+ */
+exports.customEventStats = function(request, response) {
+	
+	let app = request.app
+
+    if (!app) {
+        return response.status(400).send();
+    }
+
+    CustomEvent
+		.count({
+			appId: app.appId,
+			_new: true
+		})
+		.exec(function(err, count){
+			if(err){
+	    		response.status(400).send({
+	    			msg: err.message,
+	    			error: err
+	    		});
+	    		return;
+	    	}    	
+	        response.send({count: count});
+		});
 
 };

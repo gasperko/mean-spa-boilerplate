@@ -44,21 +44,45 @@ exports.ensureAppAuthority = function(request, response, next) {
 }
 
 /**
- * GET /
+ * GET /stats
  */
-exports.dashboard = function(request, response) {
-	// limpa cookie de primeiro acesso ao index por segurança
-	response.cookie('token', '', { expires: new Date() });
-	response.send('Dashboard index');
-};
+exports.stats = function(request, response) {
+	
+	let appId = request.params.appId || null;
+	
+	if(!appId) {
+		return response.status(401).send();
+	}
+	
+	async.parallel({
+		errors: function(callback) {
+			Error
+				.count({
+					appId: appId,
+					_new: true
+				})
+				.exec(callback);
+			// setTimeout(function() {
+			// 	callback(null, 1);
+			// }, 200);
+		},
+		events: function(callback) {
+			CustomEvent
+				.count({
+					appId: appId,
+					_new: true
+				})
+				.exec(callback);
+		}
+	}, function(err, result) {
+		// results is now equals to: {one: 1, two: 2}
 
-/**
- * GET /errors
- */
-exports.errors = function(request, response) {
-	// limpa cookie de primeiro acesso ao index por segurança
-	response.cookie('token', '', { expires: new Date() });
-	response.send('Dashboard index');
+		if (err) {
+			response.status(400).send(err);
+		}
+
+		response.send(result);
+	});
 };
 
 //////////////////////////////////////////////////////////////

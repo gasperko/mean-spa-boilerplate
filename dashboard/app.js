@@ -1,4 +1,4 @@
-angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer', 'ngCookies', 'ngTable', 'ui.bootstrap', 'angular-clipboard'])
+angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer', 'ngCookies', 'ngTable', 'ui.bootstrap', 'angular-clipboard', 'ui.ace'])
     .config(function($routeProvider, $locationProvider, $authProvider) {
         $locationProvider.html5Mode(false);
 
@@ -13,6 +13,7 @@ angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer',
             .when('/errors', {
                 templateUrl: 'partials/errors.html',
                 controller: 'ErrorsCtrl',
+                controllerAs: 'vm',
                 resolve: {
                     loginRequired: loginRequired
                 }
@@ -20,12 +21,18 @@ angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer',
             .when('/custom-events', {
                 templateUrl: 'partials/custom-events.html',
                 controller: 'CustomEventsCtrl',
+                controllerAs: 'vm',
                 resolve: {
                     loginRequired: loginRequired
                 }
             })
-            .otherwise({
-                templateUrl: 'partials/404.html'
+            .when('/triggers', {
+                templateUrl: 'partials/triggers.html',
+                controller: 'TriggersCtrl',
+                controllerAs: 'vm',
+                resolve: {
+                    loginRequired: loginRequired
+                }
             });
 
         $authProvider.loginUrl = '/login';
@@ -39,24 +46,43 @@ angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer',
 
         function loginRequired($location, $auth) {
             if (!$auth.isAuthenticated()) {
-                $location.path('/login');
+                window.location.replace('/');
             }
         }
     })
-    .run(function($rootScope, $window, $routeParams, App) {
+    .run(function($rootScope, $window, $routeParams, App, Dashboard) {
         
-        // console.info('$routeParams', $routeParams, App);
-        
-        // App
-        //     .getData($routeParams.appId)
-        //     .then(function(r) {
-        //         console.log('r', r);
-        //         if (r && r.data && r.data.apps) {
-        //             $rootScope.currentApp= r.data.app;
-        //         }
-        //     });
+        $rootScope.stats = {};
+
+        $rootScope.$safeApply = function safeApply(operation) {
+            var phase = this.$root.$$phase;
+            if (phase !== '$apply' && phase !== '$digest') {
+                this.$apply(operation);
+                return;
+            }
+
+            if (operation && typeof operation === 'function'){
+                operation();
+            }
+        };
 
         if ($window.localStorage.user) {
             $rootScope.currentUser = JSON.parse($window.localStorage.user);
         }
+
+        function init() {
+
+             Dashboard
+            .stats()
+            .then(function(r) {
+                console.log('callback 1', r);
+                if(r && r.data){
+                    $rootScope.stats = r.data;
+                }
+            });
+
+        }
+
+        init();       
+
     });

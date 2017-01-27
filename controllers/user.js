@@ -1,3 +1,5 @@
+'use strict';
+
 var async = require('async');
 var crypto = require('crypto');
 var nodemailer = require('nodemailer');
@@ -249,17 +251,30 @@ exports.forgotPost = function(req, res, next) {
             });
         },
         function(token, user, done) {
+
+            var baseMail = 'robot@jsel.info';
+            var from = '"JSEL" <' + baseMail + '>';
+             // sender address
             var transporter = nodemailer.createTransport({
-                service: 'Mailgun',
+                host: 'smtp.zoho.com',
+                port: 465,
+                secure: true, // use SSL
                 auth: {
-                    user: process.env.MAILGUN_USERNAME,
-                    pass: process.env.MAILGUN_PASSWORD
+                    user: 'robot@jsel.info',
+                    pass: 'jsel@info'
                 }
             });
+            // var transporter = nodemailer.createTransport({
+            //     service: 'Mailgun',
+            //     auth: {
+            //         user: process.env.MAILGUN_USERNAME,
+            //         pass: process.env.MAILGUN_PASSWORD
+            //     }
+            // });
             var mailOptions = {
                 to: user.email,
-                from: 'support@yourdomain.com',
-                subject: '✔ Reset your password on Mega Boilerplate',
+                from: from,
+                subject: '✔ Reset your password on JSEL',
                 text: 'You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\n' +
                     'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
                     'http://' + req.headers.host + '/reset/' + token + '\n\n' +
@@ -309,17 +324,29 @@ exports.resetPost = function(req, res, next) {
                 });
         },
         function(user, done) {
+            // var transporter = nodemailer.createTransport({
+            //     service: 'Mailgun',
+            //     auth: {
+            //         user: process.env.MAILGUN_USERNAME,
+            //         pass: process.env.MAILGUN_PASSWORD
+            //     }
+            // });
+            var baseMail = 'robot@jsel.info';
+            var from = '"JSEL" <' + baseMail + '>';
+             // sender address
             var transporter = nodemailer.createTransport({
-                service: 'Mailgun',
+                host: 'smtp.zoho.com',
+                port: 465,
+                secure: true, // use SSL
                 auth: {
-                    user: process.env.MAILGUN_USERNAME,
-                    pass: process.env.MAILGUN_PASSWORD
+                    user: 'robot@jsel.info',
+                    pass: 'jsel@info'
                 }
             });
             var mailOptions = {
-                from: 'support@yourdomain.com',
+                from: from,
                 to: user.email,
-                subject: 'Your Mega Boilerplate password has been changed',
+                subject: 'Your JSEL password has been changed',
                 text: 'Hello,\n\n' +
                     'This is a confirmation that the password for your account ' + user.email + ' has just been changed.\n'
             };

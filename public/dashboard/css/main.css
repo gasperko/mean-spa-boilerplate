@@ -7156,3 +7156,20 @@ table.resp {
 .page-header {
   display: inline-block;
   width: 100%; }
+
+body .table-hover > tbody > tr:hover {
+  background-color: rgba(243, 242, 242, 0.42); }
+
+.status-marker {
+  color: #d9534f; }
+  .status-marker.enabled {
+    color: #5cb85c; }
+
+.ace_editor {
+  height: 210px; }
+
+.snippet-code.ace_editor {
+  height: 235px; }
+
+.app-popover {
+  color: #6bc9dc; }

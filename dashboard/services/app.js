@@ -25,12 +25,15 @@ angular.module('MainApp')
 
 					var currentApp = $window.localStorage['app_' + currentAppID];
 					if(currentApp){
+
 						currentApp = JSON.parse(currentApp);
+						
 						deferred.resolve({
 							data: {
 								app: currentApp
 							}
 						});
+
 					}else{
 
 						return this

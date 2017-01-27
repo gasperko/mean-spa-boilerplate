@@ -1,5 +1,32 @@
 angular.module('MainApp', ['ngRoute', 'satellizer', 'ngCookies']);
-angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer', 'ngCookies', 'ngTable', 'ui.bootstrap', 'angular-clipboard'])
+angular.module('MainApp')
+    .factory('Account', ["$http", "$window", "$cookies", "$auth", function($http, $window, $cookies, $auth) {
+        return {
+            updateProfile: function(data) {
+                return $http.put('/account', data);
+            },
+            changePassword: function(data) {
+                return $http.put('/account', data);
+            },
+            deleteAccount: function() {
+                return $http.delete('/account');
+            },
+            forgotPassword: function(data) {
+                return $http.post('/forgot', data);
+            },
+            resetPassword: function(token, data) {
+                return $http.post('/reset/' + token, data);
+            },
+            logout: function() {
+                delete $window.localStorage.user;
+                $cookies.remove('currentAppId', {path: '/'});
+                $cookies.remove('token', {path: '/'});
+                $auth.logout();
+            }
+
+        };
+    }]);
+angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer', 'ngCookies', 'ngTable', 'ui.bootstrap', 'angular-clipboard', 'ui.ace'])
     .config(["$routeProvider", "$locationProvider", "$authProvider", function($routeProvider, $locationProvider, $authProvider) {
         loginRequired.$inject = ["$location", "$auth"];
         $locationProvider.html5Mode(false);
@@ -15,6 +42,7 @@ angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer',
             .when('/errors', {
                 templateUrl: 'partials/errors.html',
                 controller: 'ErrorsCtrl',
+                controllerAs: 'vm',
                 resolve: {
                     loginRequired: loginRequired
                 }
@@ -22,12 +50,18 @@ angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer',
             .when('/custom-events', {
                 templateUrl: 'partials/custom-events.html',
                 controller: 'CustomEventsCtrl',
+                controllerAs: 'vm',
                 resolve: {
                     loginRequired: loginRequired
                 }
             })
-            .otherwise({
-                templateUrl: 'partials/404.html'
+            .when('/triggers', {
+                templateUrl: 'partials/triggers.html',
+                controller: 'TriggersCtrl',
+                controllerAs: 'vm',
+                resolve: {
+                    loginRequired: loginRequired
+                }
             });
 
         $authProvider.loginUrl = '/login';
@@ -41,26 +75,45 @@ angular.module('DashboardApp', ['MainApp','ngRoute', 'ngResource', 'satellizer',
 
         function loginRequired($location, $auth) {
             if (!$auth.isAuthenticated()) {
-                $location.path('/login');
+                window.location.replace('/');
             }
         }
     }])
-    .run(["$rootScope", "$window", "$routeParams", "App", function($rootScope, $window, $routeParams, App) {
+    .run(["$rootScope", "$window", "$routeParams", "App", "Dashboard", function($rootScope, $window, $routeParams, App, Dashboard) {
         
-        // console.info('$routeParams', $routeParams, App);
-        
-        // App
-        //     .getData($routeParams.appId)
-        //     .then(function(r) {
-        //         console.log('r', r);
-        //         if (r && r.data && r.data.apps) {
-        //             $rootScope.currentApp= r.data.app;
-        //         }
-        //     });
+        $rootScope.stats = {};
+
+        $rootScope.$safeApply = function safeApply(operation) {
+            var phase = this.$root.$$phase;
+            if (phase !== '$apply' && phase !== '$digest') {
+                this.$apply(operation);
+                return;
+            }
+
+            if (operation && typeof operation === 'function'){
+                operation();
+            }
+        };
 
         if ($window.localStorage.user) {
             $rootScope.currentUser = JSON.parse($window.localStorage.user);
         }
+
+        function init() {
+
+             Dashboard
+            .stats()
+            .then(function(r) {
+                console.log('callback 1', r);
+                if(r && r.data){
+                    $rootScope.stats = r.data;
+                }
+            });
+
+        }
+
+        init();       
+
     }]);
 angular.module('MainApp')
 	.controller('AppsCreateCtrl', ["$scope", "$rootScope", "$location", "$window", "$auth", "App", function($scope, $rootScope, $location, $window, $auth, App) {
@@ -142,51 +195,6 @@ angular.module('MainApp')
 		init();
 	}]);
 angular.module('MainApp')
-	.controller('AppsCtrl', ["$scope", "$rootScope", "$location", "$window", "$auth", "$cookies", "App", function($scope, $rootScope, $location, $window, $auth, $cookies, App) {
-
-		function init() {
-
-			App
-				.list()
-				.then(function(r) {
-					console.log('r', r);
-					if (r && r.data && r.data.apps) {
-						$scope.apps = r.data.apps;
-					}
-				});
-
-		}
-
-		$scope.profile = $rootScope.currentUser;
-		$scope.apps = [];
-
-		$scope.remove = function(app) {
-			var sure = confirm('Do you want to remove?');
-			if (sure) {
-				App
-					.delete(app.appId)
-					.then(function(r) {
-						var index = $scope.apps.indexOf(app);
-						$scope.apps.splice(index, 1);
-					});
-			}
-		}
-
-		$scope.goToDashboard = function(app) {
-			console.log('$scope.profile', $scope.profile);
-			var token = $window.localStorage.satellizer_token
-			if(token){
-				$cookies.put('token', token);
-				console.log('token', token, $cookies.get('token'));
-				$location.path('/' + app.appId + '/dashboard');
-			}
-		}
-
-		init();
-
-	}]);
-
-angular.module('MainApp')
   .controller('ContactCtrl', ["$scope", "Contact", function($scope, Contact) {
     $scope.sendContactForm = function() {
       Contact.send($scope.contact)
@@ -206,17 +214,19 @@ angular.module('MainApp')
 angular.module('DashboardApp')
 	.controller('CustomEventsCtrl', ["$scope", "$rootScope", "$resource", "$location", "$window", "$auth", "$log", "$routeParams", "$uibModal", "UrlHelper", "CustomEvent", "NgTableParams", function($scope, $rootScope, $resource, $location, $window, $auth, $log, $routeParams, $uibModal, UrlHelper, CustomEvent, NgTableParams) {
 
+		var self = this;
 		var modalInstance;
 		var Api = $resource(UrlHelper.buildUrl('/custom-events'));
 
 		function CustomEventDetailViewModel(e) {
 
-			var obj = e;
+			var obj = {};
 			
 			obj._id = e._id;
 			obj.eventName = e.eventName;
 			obj.data = e.data;
 			obj.createdAt = e.createdAt;
+			obj._new = e._new;
 
 			return obj;
 
@@ -231,6 +241,11 @@ angular.module('DashboardApp')
 		      scope: $scope
 		    });
 
+		    event._new = false;
+
+			CustomEvent
+				.update(event._id)
+				.then(fetchUnread);
 		}
 
 		function remove(event) {
@@ -277,9 +292,9 @@ angular.module('DashboardApp')
 
 		function toggleAll(){
 
-			$scope.selectedAll = !$scope.selectedAll;
+			//self.selectedAll = !self.selectedAll;
 
-			if($scope.selectedAll){
+			if(self.selectedAll){
 				// seleciona todos
 				$log.log('selectAll');
 				selectAll();
@@ -290,6 +305,7 @@ angular.module('DashboardApp')
 			}
 
 		}
+
 
 		function toggleSelection(error){
 
@@ -307,16 +323,26 @@ angular.module('DashboardApp')
 		function toggleSelectAllPages($event){
 
 			$event.preventDefault();
-			$scope.selectedAllPages = !$scope.selectedAllPages;
+			self.selectedAllPages = !self.selectedAllPages;
 			
-			if($scope.selectedAllPages){
+			if(self.selectedAllPages){
 				selectAll();
-				$scope.selectedAll = true;
+				self.selectedAll = true;
 			}else{
 				clearSelection();
-				$scope.selectedAll = false;
+				self.selectedAll = false;
 			}
 
+		}
+
+		function fetchUnread() {
+			CustomEvent
+				.stats()
+				.then(function(r){
+					if(r && r.data && r.data.hasOwnProperty('count')){
+						$rootScope.stats.events = r.data.count || 0;
+					}
+				});
 		}
 
 		function bulkAction(action) {
@@ -325,13 +351,16 @@ angular.module('DashboardApp')
 
 			function execute() {
 				CustomEvent
-					.bulk(action, data, $scope.selectedAllPages)
+					.bulk(action, data, self.selectedAllPages)
 					.then(function(r) {
 						
 						console.log('error bulk', r);
 						
 						$scope.gridEvents.reload();
 
+						self.selectedAll = false;
+						self.selectedAllPages = false;
+						clearSelection();
 					});
 			}
 
@@ -339,7 +368,7 @@ angular.module('DashboardApp')
 			if($scope.selecteds.length){
 
 				
-				if(!$scope.selectedAllPages){
+				if(!self.selectedAllPages){
 					angular.forEach($scope.selecteds, function(o) {
 						data.push(o._id);
 					});
@@ -373,6 +402,13 @@ angular.module('DashboardApp')
 						console.log('r', r);
 						// if (r && r.data && r.data.errors) {
 						if (r) {
+
+							self.selectedAll = false;
+							self.selectedAllPages = false;
+							clearSelection();
+
+							fetchUnread();
+
 							$scope.gridTotal = r.total;
 							params.total(r.total); // recal. page nav controls
 							var filtered = r.docs;
@@ -385,10 +421,12 @@ angular.module('DashboardApp')
 
 		}
 
+		$rootScope.stats = $rootScope.stats || {};
+		
 		$scope.profile = $rootScope.currentUser;
 		$scope.globalSearchTerm = '';
-		$scope.selectedAll = false;
-		$scope.selectedAllPages = false;
+		self.selectedAll = false;
+		self.selectedAllPages = false;
 		$scope.gridTotal = 0;
 		$scope.selecteds = [];
 		$scope.gridEvents = [];
@@ -413,40 +451,54 @@ angular.module('DashboardApp')
 
 		}, true);
 
-
 	}]);
 
 angular.module('DashboardApp')
-	.controller('DashboardCtrl', ["$scope", "$rootScope", "$location", "$window", "$auth", "$routeParams", "App", function($scope, $rootScope, $location, $window, $auth, $routeParams, App) {
+	.controller('DashboardCtrl', ["$scope", "$rootScope", "$location", "$window", "$auth", "$routeParams", "App", "Dashboard", function($scope, $rootScope, $location, $window, $auth, $routeParams, App, Dashboard) {
 
 		function buildSnippet(app) {
 
-			$scope.textToCopy = "(function(j, s, e, l, i, n, f, o) {\n";
-			$scope.textToCopy += "j['JselObject'] = i;\n";
-			$scope.textToCopy += "j[i] = j[i] || function() {\n";
-			$scope.textToCopy += "    (j[i].q = j[i].q || []).push(arguments)\n";
-			$scope.textToCopy += "},\n";
-			$scope.textToCopy += "j[i].id = '" + app.appId +"',\n";
-			$scope.textToCopy += "n = s.createElement(e),\n";
-			$scope.textToCopy += "f = s.getElementsByTagName(e)[0];\n";
-			$scope.textToCopy += "n.async = 1;\n";
-			$scope.textToCopy += "n.src = l;\n";
-			$scope.textToCopy += "f.parentNode.insertBefore(n, f)\n";
-			$scope.textToCopy += "})(window, document, 'script', 'http://jsel.info/static/scripts/jsel.js', 'jsel');";
-			
+			var textToCopy = '';
+
+			textToCopy += "<script>\n";
+			textToCopy += "\t(function(j, s, e, l, i, n, f, o) {\n";
+			textToCopy += "\t\tj['JselObject'] = i;\n";
+			textToCopy += "\t\tj[i] = j[i] || function() {\n";
+			textToCopy += "\t\t    (j[i].q = j[i].q || []).push(arguments)\n";
+			textToCopy += "\t\t},\n";
+			textToCopy += "\t\tj[i].id = '" + app.appId + "',\n";
+			textToCopy += "\t\tn = s.createElement(e),\n";
+			textToCopy += "\t\tf = s.getElementsByTagName(e)[0];\n";
+			textToCopy += "\t\tn.async = 1;\n";
+			textToCopy += "\t\tn.src = l;\n";
+			textToCopy += "\t\tf.parentNode.insertBefore(n, f)\n";
+			textToCopy += "\t})(window, document, 'script', '//jsel.info/static/scripts/jsel.js', 'jsel');\n";
+			textToCopy += "</script>\n";
+
+
+			return textToCopy;
+
 		}
 
 		function init() {
 
 			App
-                .getCurrent()
-                .then(function(r) {
-                    if (r && r.data && r.data.app) {
-                        $scope.app = r.data.app;
-                        buildSnippet($scope.app);
-                    }
-                });
+				.getCurrent()
+				.then(function(r) {
+					if (r && r.data && r.data.app) {
+						$scope.app = r.data.app;
+						$scope.textToCopy = buildSnippet($scope.app);
+					}
+				});
 
+			Dashboard
+				.stats()
+				.then(function(r) {
+					console.log('callback 2', r);
+					if (r && r.data) {
+						$rootScope.stats = r.data;
+					}
+				});
 		}
 
 		$scope.btnCopyText = 'Copy to clipboard';
@@ -454,23 +506,41 @@ angular.module('DashboardApp')
 		$scope.textToCopy = '';
 
 		$scope.app = {};
+		$rootScope.stats = {};
 
-		$scope.success = function () {
-            console.log('Copied!');
-            $scope.btnCopyText = 'Copied!';
-        };
+		$scope.success = function() {
+			console.log('Copied!');
+			$scope.btnCopyText = 'Copied!';
+		};
 
-        $scope.fail = function (err) {
-            console.error('Error!', err);
-            $scope.btnCopyText = 'Error!';
-        };
+		$scope.fail = function(err) {
+			console.error('Error!', err);
+			$scope.btnCopyText = 'Error!';
+		};
+
+		$scope.aceOption = {
+			mode: 'html',
+			useWrapMode: false,
+			showGutter: false,
+			theme: 'chrome',
+			onLoad: function(_ace) {
+
+				_ace.setReadOnly(true);
+				_ace.setShowPrintMargin(false);
+				_ace.setHighlightActiveLine(false);
+				_ace.setBehavioursEnabled(false);
+				_ace.setDisplayIndentGuides(false);
+				
+			}
+		};
 
 		init();
 
 	}]);
-
 angular.module('DashboardApp')
 	.controller('ErrorsCtrl', ["$scope", "$rootScope", "$log", "$resource", "$location", "$window", "$auth", "$routeParams", "$uibModal", "UrlHelper", "Error", "NgTableParams", function($scope, $rootScope, $log, $resource, $location, $window, $auth, $routeParams, $uibModal, UrlHelper, Error, NgTableParams) {
+		
+		var self = this;
 
 		var modalInstance;
 		var Api = $resource(UrlHelper.buildUrl('/errors'));
@@ -484,6 +554,7 @@ angular.module('DashboardApp')
 			obj.browser = e.ua.family;
 			obj.browserVersion = e.ua.major;
 			obj.url = obj.locationObject.href;
+			obj._new = e._new;
 			//obj.url = '';
 
 			return obj;
@@ -513,6 +584,13 @@ angular.module('DashboardApp')
 		      scope: $scope
 		    });
 
+
+			error._new = false;
+
+		    Error
+				.update(error._id)
+				.then(fetchUnread);
+
 		}
 
 		function remove(error) {
@@ -538,7 +616,6 @@ angular.module('DashboardApp')
 		}
 
 		function selectAll() {
-			console.info('$scope.gridErrors', $scope.gridErrors);
 			
 			$scope.selecteds = [];
 
@@ -561,9 +638,9 @@ angular.module('DashboardApp')
 
 		function toggleAll(){
 
-			$scope.selectedAll = !$scope.selectedAll;
+			//self.selectedAll = !self.selectedAll;
 
-			if($scope.selectedAll){
+			if(self.selectedAll){
 				// seleciona todos
 				$log.log('selectAll');
 				selectAll();
@@ -591,16 +668,26 @@ angular.module('DashboardApp')
 		function toggleSelectAllPages($event){
 
 			$event.preventDefault();
-			$scope.selectedAllPages = !$scope.selectedAllPages;
+			self.selectedAllPages = !self.selectedAllPages;
 			
-			if($scope.selectedAllPages){
+			if(self.selectedAllPages){
 				selectAll();
-				$scope.selectedAll = true;
+				self.selectedAll = true;
 			}else{
 				clearSelection();
-				$scope.selectedAll = false;
+				self.selectedAll = false;
 			}
 
+		}
+
+		function fetchUnread() {
+			Error
+				.stats()
+				.then(function(r){
+					if(r && r.data && r.data.hasOwnProperty('count')){
+						$rootScope.stats.errors = r.data.count || 0;
+					}
+				});
 		}
 
 		function bulkAction(action) {
@@ -608,13 +695,18 @@ angular.module('DashboardApp')
 			var data = [];
 
 			function execute() {
+
 				Error
-					.bulk(action, data, $scope.selectedAllPages)
+					.bulk(action, data, self.selectedAllPages)
 					.then(function(r) {
 						
 						console.log('error bulk', r);
 						
 						$scope.gridErrors.reload();
+
+						self.selectedAll = false;
+						self.selectedAllPages = false;
+						clearSelection();
 
 					});
 			}
@@ -623,7 +715,7 @@ angular.module('DashboardApp')
 			if($scope.selecteds.length){
 
 				
-				if(!$scope.selectedAllPages){
+				if(!self.selectedAllPages){
 					angular.forEach($scope.selecteds, function(o) {
 						data.push(o._id);
 					});
@@ -666,6 +758,13 @@ angular.module('DashboardApp')
 						console.log('r', r);
 						// if (r && r.data && r.data.errors) {
 						if (r) {
+
+							self.selectedAll = false;
+							self.selectedAllPages = false;
+							clearSelection();
+
+							fetchUnread();
+
 							$scope.gridTotal = r.total;
 							params.total(r.total); // recal. page nav controls
 							var filteredErrors = filterErrors(r.docs);
@@ -678,10 +777,12 @@ angular.module('DashboardApp')
 
 		}
 
+		$rootScope.stats = $rootScope.stats || {};
+
 		$scope.profile = $rootScope.currentUser;
 		$scope.globalSearchTerm = '';
-		$scope.selectedAll = false;
-		$scope.selectedAllPages = false;
+		self.selectedAll = false;
+		self.selectedAllPages = false;
 		$scope.gridTotal = 0;
 		$scope.selecteds = [];
 		$scope.gridErrors = [];
@@ -726,8 +827,21 @@ angular.module('DashboardApp')
   }]);
 
 angular.module('DashboardApp')
-    .controller('HeaderCtrl', ["$scope", "$location", "$window", "$auth", "$routeParams", "App", function($scope, $location, $window, $auth, $routeParams, App) {
+    .controller('HeaderCtrl', ["$scope", "$rootScope", "$location", "$window", "$auth", "$routeParams", "App", "$interval", "$timeout", "Dashboard", "Account", function($scope, $rootScope, $location, $window, $auth, $routeParams, App, $interval, $timeout, Dashboard, Account) {
         
+        function fetchStats() {
+
+            Dashboard
+                .stats()
+                .then(function(r) {
+                    console.log('callback 1', r);
+                    if(r && r.data){
+                        $rootScope.stats = r.data;
+                    }
+                });
+
+        }
+
         function init() {
 
             App
@@ -738,6 +852,10 @@ angular.module('DashboardApp')
                         $scope.app = r.data.app;
                     }
                 });
+
+            fetchStats();
+
+            $interval(fetchStats, 20000);
 
         }
 
@@ -750,12 +868,19 @@ angular.module('DashboardApp')
         };
 
         $scope.logout = function() {
-            $auth.logout();
-            delete $window.localStorage.user;
-            $location.path('/');
+
+            Account.logout();
+
+            $timeout(function(){
+                 window.location.replace('/');
+            }, 300);
+
+           
         };
 
         $scope.app = {};
+
+        $rootScope.stats = $rootScope.stats || {};
 
         init();
 
@@ -926,26 +1051,560 @@ angular.module('DashboardApp')
         });
     };
   }]);
-angular.module('MainApp')
-  .factory('Account', ["$http", function($http) {
-    return {
-      updateProfile: function(data) {
-        return $http.put('/account', data);
-      },
-      changePassword: function(data) {
-        return $http.put('/account', data);
-      },
-      deleteAccount: function() {
-        return $http.delete('/account');
-      },
-      forgotPassword: function(data) {
-        return $http.post('/forgot', data);
-      },
-      resetPassword: function(data) {
-        return $http.post('/reset', data);
-      }
-    };
-  }]);
+angular.module('DashboardApp')
+	.controller('TriggersCtrl', ["$scope", "$rootScope", "$log", "$resource", "$location", "$window", "$auth", "$routeParams", "$uibModal", "UrlHelper", "Error", "NgTableParams", "Trigger", function($scope, $rootScope, $log, $resource, $location, $window, $auth, $routeParams, $uibModal, UrlHelper, Error, NgTableParams, Trigger) {
+
+		var self = this;
+
+		var modalInstance;
+		var Api = $resource(UrlHelper.buildUrl('/triggers'));
+
+		function openCreate() {
+
+			modalInstance = $uibModal.open({
+				templateUrl: 'partials/triggers.save.html',
+				controller: 'TriggersSaveCtrl',
+				resolve: {
+			        editModel: function () {
+			          return null;
+			        }
+			      }
+			});
+
+			modalInstance.result.then(function() {
+				$scope.grid.reload();
+			}, function() {
+				// $log.info('Modal dismissed at: ' + new Date());
+			});
+
+		}
+
+		function showDetails(element) {
+
+			$scope.detailedError = element;
+
+			modalInstance = $uibModal.open({
+				templateUrl: 'partials/triggers.save.html',
+				controller: 'TriggersSaveCtrl',
+				resolve: {
+			        editModel: function () {
+			          return element;
+			        }
+			      }
+			});
+
+
+			modalInstance.result.then(function() {
+				$scope.grid.reload();
+			}, function() {
+				// $log.info('Modal dismissed at: ' + new Date());
+			});
+
+		}
+
+		function remove(element) {
+
+			var sure = confirm('Do you want to delete?');
+
+			if (sure) {
+				Trigger
+					.delete(element._id)
+					.then(function(r) {
+						$scope.grid.reload();
+					});
+			}
+
+		}
+
+		function closeModal() {
+			if (modalInstance) {
+				modalInstance.close();
+			}
+		}
+
+		function selectAll() {
+
+			$scope.selecteds = [];
+
+			angular.forEach($scope.grid.data, function(data) {
+				data.isSelected = true;
+				$scope.selecteds.push(data);
+			});
+
+		}
+
+		function clearSelection() {
+
+			$scope.selecteds = [];
+
+			angular.forEach($scope.grid.data, function(data) {
+				data.isSelected = false;
+			});
+
+		}
+
+		function toggleAll() {
+
+			//self.selectedAll = !self.selectedAll;
+
+			if (self.selectedAll) {
+				// seleciona todos
+				$log.log('selectAll');
+				selectAll();
+			} else {
+				// limpa seleção
+				$log.log('clear selectAll');
+				clearSelection();
+			}
+
+		}
+
+		function toggleSelection(error) {
+
+			if (error.isSelected) {
+				// seleciona
+				$scope.selecteds.push(error);
+			} else {
+				// limpa
+				var index = $scope.selecteds.indexOf(error);
+				$scope.selecteds.splice(index, 1);
+			}
+
+		}
+
+		function toggleSelectAllPages($event) {
+
+			$event.preventDefault();
+			self.selectedAllPages = !self.selectedAllPages;
+
+			if (self.selectedAllPages) {
+				selectAll();
+				self.selectedAll = true;
+			} else {
+				clearSelection();
+				self.selectedAll = false;
+			}
+
+		}
+
+		function bulkAction(action) {
+
+			var data = [];
+
+			function execute() {
+
+				Error
+					.bulk(action, data, self.selectedAllPages)
+					.then(function(r) {
+
+						console.log('error bulk', r);
+
+						$scope.grid.reload();
+
+						self.selectedAll = false;
+						self.selectedAllPages = false;
+						clearSelection();
+
+					});
+			}
+
+			// $scope.selecteds
+			if ($scope.selecteds.length) {
+
+
+				if (!self.selectedAllPages) {
+					angular.forEach($scope.selecteds, function(o) {
+						data.push(o._id);
+					});
+				}
+
+				if (action === 'delete') {
+					var sure = confirm('Do you want delete the selected objects?');
+					if (sure) {
+						execute();
+					}
+				} else {
+					execute();
+				}
+
+			} else {
+				alert('Select one or more objects.')
+			}
+
+		}
+
+		function init() {
+
+			$scope.trigger = {};
+
+			$scope.trigger.callback = "function(){\n var Trigger = new Function(); \nreturn {this: this.toString(),\nTrigger: Trigger}\n}";
+
+			$scope.grid = new NgTableParams({}, {
+				filterDelay: 300,
+				getData: function(params) {
+
+					console.info("params", params);
+
+					//ajax request to api
+					return Api.get(params.url()).$promise.then(function(r) {
+						console.log('r', r);
+						if (r) {
+
+							self.selectedAll = false;
+							self.selectedAllPages = false;
+							clearSelection();
+
+							$scope.gridTotal = r.total;
+							params.total(r.total); // recal. page nav controls
+							return r.docs;
+						}
+					});
+
+				}
+			});
+
+		}
+
+		$rootScope.stats = $rootScope.stats || {};
+
+		$scope.profile = $rootScope.currentUser;
+		$scope.globalSearchTerm = '';
+		self.selectedAll = false;
+		self.selectedAllPages = false;
+		$scope.gridTotal = 0;
+		$scope.selecteds = [];
+		$scope.grid = [];
+		$scope.detailedError = {};
+		$scope.showDetails = showDetails;
+		$scope.remove = remove;
+		$scope.closeModal = closeModal;
+		$scope.selectAll = selectAll;
+		$scope.toggleSelection = toggleSelection;
+		$scope.toggleSelectAllPages = toggleSelectAllPages;
+		$scope.toggleAll = toggleAll;
+		$scope.bulkAction = bulkAction;
+
+
+		/////
+
+		$scope.openCreate = openCreate;
+
+		init();
+
+		// Watcher for global search without button
+		$scope.$watch('globalSearchTerm', function(newTerm, oldTerm) {
+
+			$scope.grid.filter({
+				_all: newTerm
+			});
+
+		}, true);
+
+	}]);
+angular.module('DashboardApp')
+	.controller('TriggersSaveCtrl', ["$scope", "$rootScope", "$log", "$resource", "$location", "$window", "$auth", "$routeParams", "$uibModalInstance", "editModel", "UrlHelper", "Error", "NgTableParams", "Trigger", "$sce", function($scope, $rootScope, $log, $resource, $location, $window, $auth, $routeParams, $uibModalInstance, editModel, UrlHelper, Error, NgTableParams, Trigger, $sce) {
+
+		var self = this;
+		var aceMode = 'javascript';
+
+		var baseCallbackDesc = '/*\n';
+		baseCallbackDesc += 'global scope:\n';
+		baseCallbackDesc += '\t@global {object} request(http request)\n';
+		baseCallbackDesc += '\t@global {object} mailer(mail service)\n';
+		baseCallbackDesc += '\n';
+		baseCallbackDesc += 'callback function scope:\n';
+		baseCallbackDesc += '\t@param {any} arg1(first argument of Event)\n';
+		baseCallbackDesc += '\t@param {any} arg2(second argument of Event)\n';
+		baseCallbackDesc += '\t...\n';
+		baseCallbackDesc += '\t@param {any} argN(N argument of Event)\n';
+		baseCallbackDesc += '*/\n';
+		var baseCallback = baseCallbackDesc;
+		baseCallback += 'function callback(arg1, arg2, argN) {\n';
+		baseCallback += '\t // handle data\n';
+		baseCallback += '}';
+
+		function stripComments(stringIN) {
+			var SLASH = '/';
+			var BACK_SLASH = '\\';
+			var STAR = '*';
+			var DOUBLE_QUOTE = '"';
+			var SINGLE_QUOTE = "'";
+			var NEW_LINE = '\n';
+			var CARRIAGE_RETURN = '\r';
+
+			var string = stringIN;
+			var length = string.length;
+			var position = 0;
+			var output = [];
+
+			function getCurrentCharacter() {
+				return string.charAt(position);
+			}
+
+			function getPreviousCharacter() {
+				return string.charAt(position - 1);
+			}
+
+			function getNextCharacter() {
+				return string.charAt(position + 1);
+			}
+
+			function add() {
+				output.push(getCurrentCharacter());
+			}
+
+			function next() {
+				position++;
+			}
+
+			function atEnd() {
+				return position >= length;
+			}
+
+			function isEscaping() {
+				if (getPreviousCharacter() == BACK_SLASH) {
+					var caret = position - 1;
+					var escaped = true;
+					while (caret-- > 0) {
+						if (string.charAt(caret) != BACK_SLASH) {
+							return escaped;
+						}
+						escaped = !escaped;
+					}
+					return escaped;
+				}
+				return false;
+			}
+
+			function processSingleQuotedString() {
+				if (getCurrentCharacter() == SINGLE_QUOTE) {
+					add();
+					next();
+					while (!atEnd()) {
+						if (getCurrentCharacter() == SINGLE_QUOTE && !isEscaping()) {
+							return;
+						}
+						add();
+						next();
+					}
+				}
+			}
+
+			function processDoubleQuotedString() {
+				if (getCurrentCharacter() == DOUBLE_QUOTE) {
+					add();
+					next();
+					while (!atEnd()) {
+						if (getCurrentCharacter() == DOUBLE_QUOTE && !isEscaping()) {
+							return;
+						}
+						add();
+						next();
+					}
+				}
+			}
+
+			function processSingleLineComment() {
+				if (getCurrentCharacter() == SLASH) {
+					if (getNextCharacter() == SLASH) {
+						next();
+						while (!atEnd()) {
+							next();
+							if (getCurrentCharacter() == NEW_LINE || getCurrentCharacter() == CARRIAGE_RETURN) {
+								return;
+							}
+						}
+					}
+				}
+			}
+
+			function processMultiLineComment() {
+				if (getCurrentCharacter() == SLASH) {
+					if (getNextCharacter() == STAR) {
+						next();
+						next();
+						while (!atEnd()) {
+							next();
+							if (getCurrentCharacter() == STAR) {
+								if (getNextCharacter() == SLASH) {
+									next();
+									next();
+									return;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			function processRegularExpression() {
+				if (getCurrentCharacter() == SLASH) {
+					add();
+					next();
+					while (!atEnd()) {
+						if (getCurrentCharacter() == SLASH && !isEscaping()) {
+							return;
+						}
+						add();
+						next();
+					}
+				}
+			}
+
+			while (!atEnd()) {
+				processDoubleQuotedString();
+				processSingleQuotedString();
+				processSingleLineComment();
+				processMultiLineComment();
+				processRegularExpression();
+				if (!atEnd()) {
+					add();
+					next();
+				}
+			}
+			return output.join('');
+
+		};
+
+		function validateCallbackFuntion() {
+
+			var r = false;
+
+			try {
+
+				var base = 'var window=null,console,document=null,angular=null,top=null,$=null,jQuery=null';
+
+				var code = '(function(){';
+				code += base;
+				code += ';var $e=';
+				code += $scope.trigger.callback;
+				code += '; return $e;';
+				code += '});';
+
+				var ev = eval(code);
+				console.log('ev', ev, ev(), typeof ev, typeof $e);
+				console.log('eval', ev, ev());
+
+				r = typeof ev === 'function' && typeof ev() === 'function';
+
+			} catch (e) {
+
+				r = false;
+				console.log('error catch', e, e.toString());
+
+			}
+
+			return r;
+
+		}
+
+		function submit($form) {
+
+			// TODO - melhorar tudo isso
+			var req;
+			$scope.callbackInvalid = false;
+			$scope.canSave = true;
+
+			$scope.validateCallbackError = 'Callback must be a <strong>function</strong>.';
+
+			if (!$scope.canSave || !$scope.trigger.callback) {
+				$scope.canSave = false;
+				return;
+			}
+
+			if (!validateCallbackFuntion()) {
+				$scope.callbackInvalid = true;
+				return;
+			}
+
+			if (!!~$scope.trigger.callback.indexOf('console.')) {
+				$scope.callbackInvalid = true;
+				$scope.validateCallbackError = '<strong>console</strong> is not defined.';
+				//$rootScope.$safeApply();
+				return;
+			}
+
+			// remove comentários do código
+			// $scope.trigger.callback = $scope.trigger.callback.replace(baseCallbackDesc, '');
+			$scope.trigger.callback = stripComments($scope.trigger.callback);
+
+
+			if (!$scope.isEdit) {
+				req = Trigger.create($scope.trigger);
+			} else {
+				req = Trigger.update($scope.trigger._id, $scope.trigger);
+			}
+
+			req
+				.then(function(r) {
+					console.log('r', r);
+					$scope.trigger = {};
+					close();
+				})
+				.catch(function(response) {
+					$scope.messages = {
+						error: Array.isArray(response.data) ? response.data : [response.data]
+					};
+				});
+
+		}
+
+		function close() {
+			$uibModalInstance.close();
+		}
+
+		function init() {
+			console.log('editModel', editModel);
+			if (editModel) {
+				$scope.isEdit = true;
+				$scope.trigger = editModel;
+			} else {
+				$scope.trigger = {
+					enabled: true
+				};
+
+				$scope.trigger.callback = baseCallback;
+			}
+		}
+
+		$scope.aceOption = {
+			theme: 'chrome',
+			mode: aceMode.toLowerCase(),
+			onLoad: function(_ace) {
+
+				_ace.setShowPrintMargin(false);
+
+				_ace.getSession().on("changeAnnotation", function() {
+
+					var annot = _ace.getSession().getAnnotations();
+
+					console.log('annot', annot);
+
+					$scope.canSave = true;
+					$scope.callbackInvalid = false;
+
+					angular.forEach(annot, function(a) {
+						if (a.type === 'error') {
+							$scope.canSave = false;
+						}
+					});
+
+					$rootScope.$safeApply();
+
+				});
+
+			}
+		};
+
+		$scope.validateCallbackError = 'Callback must be a <strong>function</strong>.';
+		$scope.canSave = true;
+		$scope.submit = submit;
+		$scope.close = close;
+
+		init();
+
+	}]);
+
 angular.module('MainApp')
 	.service('App', ["$http", "$window", "$q", "$cookies", function($http, $window, $q, $cookies) {
 		return {
@@ -973,12 +1632,15 @@ angular.module('MainApp')
 
 					var currentApp = $window.localStorage['app_' + currentAppID];
 					if(currentApp){
+
 						currentApp = JSON.parse(currentApp);
+						
 						deferred.resolve({
 							data: {
 								app: currentApp
 							}
 						});
+
 					}else{
 
 						return this
@@ -1005,17 +1667,26 @@ angular.module('MainApp')
 angular.module('DashboardApp')
 	.service('CustomEvent', ["$http", "UrlHelper", function($http, UrlHelper) {
 		
+		function buildUrl(path) {
+			path = path ? '/' + path : '';
+			return UrlHelper.buildUrl('/custom-event' + path);
+		}
+
 		return {
 			list: function() {
 				var url = UrlHelper.buildUrl('/custom-events');
 				return $http.get(url);
 			},
 			delete: function(id) {
-				var url = UrlHelper.buildUrl('/custom-event/' + id);
+				var url = buildUrl(id);
 				return $http.delete(url);
 			},
+			update: function(id) {
+				var url = buildUrl(id);
+				return $http.put(url);
+			},
 			bulk: function(action, data, all) {
-				var url = UrlHelper.buildUrl('/custom-event/bulk');
+				var url = buildUrl('bulk');
 				
 				var params = {
 					action: action,
@@ -1032,24 +1703,61 @@ angular.module('DashboardApp')
 					params: params,
 					paramSerializer: '$httpParamSerializerJQLike'
 				});
+			},
+			stats: function() {
+				var url = buildUrl('stats');
+				return $http.get(url);
 			}
 		};
 		
 	}]);
+angular.module('MainApp')
+	.service('Dashboard', ["$http", "$window", "UrlHelper", function($http, $window, UrlHelper) {
+		
+		var requestCache = [];
+
+		return {
+			stats: function() {
+
+				if(requestCache['stats']){
+					return requestCache['stats'];
+				}else{
+					var url = UrlHelper.buildUrl('/stats');
+					requestCache['stats'] = $http.get(url);
+					requestCache['stats']
+						.then(function(r){
+							requestCache['stats'] = null;
+							return r;
+						})
+					return requestCache['stats'];
+				}
+				
+			}
+		};
+	}]);
 angular.module('DashboardApp')
 	.service('Error', ["$http", "$httpParamSerializer", "UrlHelper", function($http, $httpParamSerializer, UrlHelper) {
 		
+		function buildUrl(path) {
+			path = path ? '/' + path : '';
+			return UrlHelper.buildUrl('/error' + path);
+		}
+
 		return {
 			list: function() {
 				var url = UrlHelper.buildUrl('/errors');
 				return $http.get(url);
 			},
 			delete: function(id) {
-				var url = UrlHelper.buildUrl('/error/' + id);
+				var url = buildUrl(id);
 				return $http.delete(url);
 			},
+			update: function(id) {
+				var url = buildUrl(id);
+				return $http.put(url);
+			},
 			bulk: function(action, data, all) {
-				var url = UrlHelper.buildUrl('/error/bulk');
+				var url = buildUrl('bulk');
 				
 				var params = {
 					action: action,
@@ -1068,6 +1776,63 @@ angular.module('DashboardApp')
 					params: params,
 					paramSerializer: '$httpParamSerializerJQLike'
 				});
+			},
+			stats: function() {
+				var url = buildUrl('stats');
+				return $http.get(url);
+			}
+		};
+
+	}]);
+angular.module('DashboardApp')
+	.service('Trigger', ["$http", "$httpParamSerializer", "UrlHelper", function($http, $httpParamSerializer, UrlHelper) {
+		
+		function buildUrl(path) {
+			path = path ? '/' + path : '';
+			return UrlHelper.buildUrl('/trigger' + path);
+		}
+
+		return {
+			create: function(data) {
+				var url = UrlHelper.buildUrl('/triggers');
+				return $http.post(url, data);
+			},
+			list: function() {
+				var url = UrlHelper.buildUrl('/triggers');
+				return $http.get(url);
+			},
+			delete: function(id) {
+				var url = buildUrl(id);
+				return $http.delete(url);
+			},
+			update: function(id, data) {
+				var url = buildUrl(id);
+				return $http.put(url, data);
+			},
+			bulk: function(action, data, all) {
+				var url = buildUrl('bulk');
+				
+				var params = {
+					action: action,
+					data: data
+				};
+
+				if(!!all){
+					params.all = true;
+				}
+								
+				console.log('params', params);
+
+				return $http({
+					url: url,
+					method: 'GET',
+					params: params,
+					paramSerializer: '$httpParamSerializerJQLike'
+				});
+			},
+			stats: function() {
+				var url = buildUrl('stats');
+				return $http.get(url);
 			}
 		};
 
@@ -1094,3 +1859,20 @@ angular.module('DashboardApp')
 	    }
 
 	}]);
+angular.module('DashboardApp')
+	.directive('appBadge', function() {
+	
+		function link(scope, elem, attrs) {
+
+		}
+
+		return {
+			restrict: 'A',
+			templateUrl: 'partials/app-badge.html',
+			scope: {
+				value: '='
+			},
+			link: link
+		};
+
+	});

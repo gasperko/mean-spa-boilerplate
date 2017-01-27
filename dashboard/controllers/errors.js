@@ -1,5 +1,7 @@
 angular.module('DashboardApp')
 	.controller('ErrorsCtrl', function($scope, $rootScope, $log, $resource, $location, $window, $auth, $routeParams, $uibModal, UrlHelper, Error, NgTableParams) {
+		
+		var self = this;
 
 		var modalInstance;
 		var Api = $resource(UrlHelper.buildUrl('/errors'));
@@ -13,6 +15,7 @@ angular.module('DashboardApp')
 			obj.browser = e.ua.family;
 			obj.browserVersion = e.ua.major;
 			obj.url = obj.locationObject.href;
+			obj._new = e._new;
 			//obj.url = '';
 
 			return obj;
@@ -42,6 +45,13 @@ angular.module('DashboardApp')
 		      scope: $scope
 		    });
 
+
+			error._new = false;
+
+		    Error
+				.update(error._id)
+				.then(fetchUnread);
+
 		}
 
 		function remove(error) {
@@ -67,7 +77,6 @@ angular.module('DashboardApp')
 		}
 
 		function selectAll() {
-			console.info('$scope.gridErrors', $scope.gridErrors);
 			
 			$scope.selecteds = [];
 
@@ -90,9 +99,9 @@ angular.module('DashboardApp')
 
 		function toggleAll(){
 
-			$scope.selectedAll = !$scope.selectedAll;
+			//self.selectedAll = !self.selectedAll;
 
-			if($scope.selectedAll){
+			if(self.selectedAll){
 				// seleciona todos
 				$log.log('selectAll');
 				selectAll();
@@ -120,16 +129,26 @@ angular.module('DashboardApp')
 		function toggleSelectAllPages($event){
 
 			$event.preventDefault();
-			$scope.selectedAllPages = !$scope.selectedAllPages;
+			self.selectedAllPages = !self.selectedAllPages;
 			
-			if($scope.selectedAllPages){
+			if(self.selectedAllPages){
 				selectAll();
-				$scope.selectedAll = true;
+				self.selectedAll = true;
 			}else{
 				clearSelection();
-				$scope.selectedAll = false;
+				self.selectedAll = false;
 			}
 
+		}
+
+		function fetchUnread() {
+			Error
+				.stats()
+				.then(function(r){
+					if(r && r.data && r.data.hasOwnProperty('count')){
+						$rootScope.stats.errors = r.data.count || 0;
+					}
+				});
 		}
 
 		function bulkAction(action) {
@@ -137,13 +156,18 @@ angular.module('DashboardApp')
 			var data = [];
 
 			function execute() {
+
 				Error
-					.bulk(action, data, $scope.selectedAllPages)
+					.bulk(action, data, self.selectedAllPages)
 					.then(function(r) {
 						
 						console.log('error bulk', r);
 						
 						$scope.gridErrors.reload();
+
+						self.selectedAll = false;
+						self.selectedAllPages = false;
+						clearSelection();
 
 					});
 			}
@@ -152,7 +176,7 @@ angular.module('DashboardApp')
 			if($scope.selecteds.length){
 
 				
-				if(!$scope.selectedAllPages){
+				if(!self.selectedAllPages){
 					angular.forEach($scope.selecteds, function(o) {
 						data.push(o._id);
 					});
@@ -195,6 +219,13 @@ angular.module('DashboardApp')
 						console.log('r', r);
 						// if (r && r.data && r.data.errors) {
 						if (r) {
+
+							self.selectedAll = false;
+							self.selectedAllPages = false;
+							clearSelection();
+
+							fetchUnread();
+
 							$scope.gridTotal = r.total;
 							params.total(r.total); // recal. page nav controls
 							var filteredErrors = filterErrors(r.docs);
@@ -207,10 +238,12 @@ angular.module('DashboardApp')
 
 		}
 
+		$rootScope.stats = $rootScope.stats || {};
+
 		$scope.profile = $rootScope.currentUser;
 		$scope.globalSearchTerm = '';
-		$scope.selectedAll = false;
-		$scope.selectedAllPages = false;
+		self.selectedAll = false;
+		self.selectedAllPages = false;
 		$scope.gridTotal = 0;
 		$scope.selecteds = [];
 		$scope.gridErrors = [];

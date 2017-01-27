@@ -1,17 +1,53 @@
-(function(document, window) {
+(function(document, window, debug, undefined) {
 
 	'use strict';
 
-	var jsel,
-		globalErrors,
-		customEvents;
+	var jsel;
+	var globalErrors;
+	var customEvents;
+	var noop;
+	var settingsDefault;
+	var _uniqueIdCounter;
 
-	var debug = true;
+	_uniqueIdCounter = 1;
+
+	noop = function() {};
+
+	settingsDefault = {
+		sendType: 'img',
+		errorHandler: noop
+	};
 
 	globalErrors = {
+		_customHandler: function(error) {
+
+			var errorHandler = jsel.settings.errorHandler;
+
+			if (errorHandler) {
+
+				if (typeof errorHandler === 'function') {
+
+					log('error handler function', errorHandler(error));
+					error.jselCustomData = errorHandler(error);
+
+				} else {
+
+					log('error handler other', errorHandler());
+					error.jselCustomData = errorHandler;
+
+				}
+
+			}
+
+			return error;
+
+		},
 		_onError: function(error) {
 
 			log('event listener error', error);
+
+			error = globalErrors._customHandler(error);
+
 			globalErrors._dispatch(error);
 
 		},
@@ -49,19 +85,19 @@
 		},
 		_dispatch: function(eventName, data) {
 
-			var url = _buildUrl('custom'),
-				msg = new DispatcherMessage();
+			var url = _buildUrl('custom');
+			var msg = new DispatcherMessage();
 
 			msg.eventName = eventName;
 			msg.data = data;
 
-			_dispatch(url, msg);
+			_dispatch(url, msg, true);
 
 		},
 		handle: function(bag) {
 
-			var command,
-				args;
+			var command;
+			var args;
 
 			if (bag && typeof bag === 'string') {
 
@@ -93,6 +129,7 @@
 		}
 	};
 
+	// ** Classes
 	function DispatcherMessage(data) {
 
 		this.data = data;
@@ -107,15 +144,23 @@
 		this.url = error.source;
 		this.line = error.lineno;
 		this.column = error.colno;
-		// this.errorObject = JSON.stringify(error.error),
-		// this.errorStack = error.error.stack,
+		this.fileName = error.filename;
 		this.locationObject = window.location;
 		this.userAgent = window.navigator.userAgent;
 		this.platform = window.navigator.platform;
 		this.language = window.navigator.language;
 		this.cookieEnabled = window.navigator.cookieEnabled;
+		this.cookie = document.cookie;
+
+		// this.errorObject = JSON.stringify(error.error),
+		// this.errorStack = error.error.stack,
+
+		if (error.jselCustomData) {
+			this.customData = error.jselCustomData;
+		}
 
 	}
+	// **
 
 	function log() {
 
@@ -130,12 +175,39 @@
 		// addEventListener
 		(function(root) {
 
-			if (!root.addEventListener && root.attachEvent) {
+			if (!root.addEventListener) {
+				(function(WindowPrototype, DocumentPrototype, ElementPrototype, addEventListener, removeEventListener, dispatchEvent, registry) {
+					WindowPrototype[addEventListener] = DocumentPrototype[addEventListener] = ElementPrototype[addEventListener] = function(type, listener) {
+						var target = this;
 
-				root.addEventListener = function(event, callback) {
-					return root.attachEvent(event, callback);
-				};
+						registry.unshift([target, type, listener, function(event) {
+							event.currentTarget = target;
+							event.preventDefault = function() {
+								event.returnValue = false;
+							};
+							event.stopPropagation = function() {
+								event.cancelBubble = true;
+							};
+							event.target = event.srcElement || target;
 
+							listener.call(target, event);
+						}]);
+
+						this.attachEvent('on' + type, registry[0][3]);
+					};
+
+					WindowPrototype[removeEventListener] = DocumentPrototype[removeEventListener] = ElementPrototype[removeEventListener] = function(type, listener) {
+						for (var index = 0, register; register = registry[index]; ++index) {
+							if (register[0] === this && register[1] === type && register[2] === listener) {
+								return this.detachEvent('on' + type, registry.splice(index, 1)[0][3]);
+							}
+						}
+					};
+
+					WindowPrototype[dispatchEvent] = DocumentPrototype[dispatchEvent] = ElementPrototype[dispatchEvent] = function(eventObject) {
+						return this.fireEvent('on' + eventObject.type, eventObject);
+					};
+				})(Window.prototype, HTMLDocument.prototype, Element.prototype, 'addEventListener', 'removeEventListener', 'dispatchEvent', []);
 			}
 
 		}(window));
@@ -249,12 +321,23 @@
 
 	}
 
+	function _uniqueId() {
+
+		var d = new Date(),
+			m = d.getMilliseconds() + "",
+			u = ++d + m + (++_uniqueIdCounter === 10000 ? (_uniqueIdCounter = 1) : _uniqueIdCounter);
+
+		return u;
+
+	}
+
 	function _encode(object) {
 		return window.btoa(JSON.stringify(object));
 	}
 
 	function _buildUrl(url) {
 
+		//var base = 'https://collect.jsel.info/';
 		var base = 'http://collect.jsel.info/';
 
 		if (debug) {
@@ -262,13 +345,20 @@
 		}
 
 		return base + url;
+
 	}
 
-	function _dispatch(url, data) {
+	function _applySettings() {
+
+		jsel.settings = jsel.settings || settingsDefault;
+
+	}
+
+	function _dispatch(url, data, timestamp, mustNotRetry) {
 
 		data = new DispatcherMessage(data);
 
-		if (jsel.sendType && jsel.sendType === 'ajax') {
+		if (jsel.settings.sendType && jsel.settings.sendType === 'ajax') {
 
 			var xhr = new XMLHttpRequest();
 
@@ -278,8 +368,16 @@
 
 		} else {
 
+			var sufix = !timestamp ? '' : '?_' + _uniqueId();
 			var image = new Image();
-			image.src = url + '/' + _encode(data);
+
+			if (!mustNotRetry) {
+				image.onerror = function() {
+					_dispatch(url, data, timestamp, true);
+				};
+			}
+
+			image.src = url + '/' + _encode(data) + sufix;
 
 		}
 
@@ -297,6 +395,8 @@
 
 		_polyfills();
 
+		_applySettings();
+
 		// Global Errors
 		globalErrors.register();
 
@@ -313,14 +413,14 @@
 
 		} else {
 
-			console.error('Missing JSEL app ID.');
+			console.warn('Missing JSEL app ID.');
 
 		}
 
 	} else {
 
-		console.warn('JSEL object is not defined.\n\nwindow.JSEL = {\n  url: "https://example.com/error",\n  type: "image"\n};');
+		console.error('JSEL object(JselObject) is not defined.');
 
 	}
 
-}(document, window));
+}(document, window, false));

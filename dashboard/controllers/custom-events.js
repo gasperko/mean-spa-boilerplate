@@ -1,17 +1,19 @@
 angular.module('DashboardApp')
 	.controller('CustomEventsCtrl', function($scope, $rootScope, $resource, $location, $window, $auth, $log, $routeParams, $uibModal, UrlHelper, CustomEvent, NgTableParams) {
 
+		var self = this;
 		var modalInstance;
 		var Api = $resource(UrlHelper.buildUrl('/custom-events'));
 
 		function CustomEventDetailViewModel(e) {
 
-			var obj = e;
+			var obj = {};
 			
 			obj._id = e._id;
 			obj.eventName = e.eventName;
 			obj.data = e.data;
 			obj.createdAt = e.createdAt;
+			obj._new = e._new;
 
 			return obj;
 
@@ -26,6 +28,11 @@ angular.module('DashboardApp')
 		      scope: $scope
 		    });
 
+		    event._new = false;
+
+			CustomEvent
+				.update(event._id)
+				.then(fetchUnread);
 		}
 
 		function remove(event) {
@@ -72,9 +79,9 @@ angular.module('DashboardApp')
 
 		function toggleAll(){
 
-			$scope.selectedAll = !$scope.selectedAll;
+			//self.selectedAll = !self.selectedAll;
 
-			if($scope.selectedAll){
+			if(self.selectedAll){
 				// seleciona todos
 				$log.log('selectAll');
 				selectAll();
@@ -85,6 +92,7 @@ angular.module('DashboardApp')
 			}
 
 		}
+
 
 		function toggleSelection(error){
 
@@ -102,16 +110,26 @@ angular.module('DashboardApp')
 		function toggleSelectAllPages($event){
 
 			$event.preventDefault();
-			$scope.selectedAllPages = !$scope.selectedAllPages;
+			self.selectedAllPages = !self.selectedAllPages;
 			
-			if($scope.selectedAllPages){
+			if(self.selectedAllPages){
 				selectAll();
-				$scope.selectedAll = true;
+				self.selectedAll = true;
 			}else{
 				clearSelection();
-				$scope.selectedAll = false;
+				self.selectedAll = false;
 			}
 
+		}
+
+		function fetchUnread() {
+			CustomEvent
+				.stats()
+				.then(function(r){
+					if(r && r.data && r.data.hasOwnProperty('count')){
+						$rootScope.stats.events = r.data.count || 0;
+					}
+				});
 		}
 
 		function bulkAction(action) {
@@ -120,13 +138,16 @@ angular.module('DashboardApp')
 
 			function execute() {
 				CustomEvent
-					.bulk(action, data, $scope.selectedAllPages)
+					.bulk(action, data, self.selectedAllPages)
 					.then(function(r) {
 						
 						console.log('error bulk', r);
 						
 						$scope.gridEvents.reload();
 
+						self.selectedAll = false;
+						self.selectedAllPages = false;
+						clearSelection();
 					});
 			}
 
@@ -134,7 +155,7 @@ angular.module('DashboardApp')
 			if($scope.selecteds.length){
 
 				
-				if(!$scope.selectedAllPages){
+				if(!self.selectedAllPages){
 					angular.forEach($scope.selecteds, function(o) {
 						data.push(o._id);
 					});
@@ -168,6 +189,13 @@ angular.module('DashboardApp')
 						console.log('r', r);
 						// if (r && r.data && r.data.errors) {
 						if (r) {
+
+							self.selectedAll = false;
+							self.selectedAllPages = false;
+							clearSelection();
+
+							fetchUnread();
+
 							$scope.gridTotal = r.total;
 							params.total(r.total); // recal. page nav controls
 							var filtered = r.docs;
@@ -180,10 +208,12 @@ angular.module('DashboardApp')
 
 		}
 
+		$rootScope.stats = $rootScope.stats || {};
+		
 		$scope.profile = $rootScope.currentUser;
 		$scope.globalSearchTerm = '';
-		$scope.selectedAll = false;
-		$scope.selectedAllPages = false;
+		self.selectedAll = false;
+		self.selectedAllPages = false;
 		$scope.gridTotal = 0;
 		$scope.selecteds = [];
 		$scope.gridEvents = [];
@@ -207,6 +237,5 @@ angular.module('DashboardApp')
 			});
 
 		}, true);
-
 
 	});

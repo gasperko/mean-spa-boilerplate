@@ -15,7 +15,7 @@
 </div>
 <!-- /.row -->
 <script type="text/ng-template" id="bulkSelection.html">
-    <input type="checkbox" ng-disabled="selectedAllPages" ng-change="toggleAll()" ng-model="selectedAll" id="select_all" value="" />
+    <input type="checkbox" ng-disabled="vm.selectedAllPages" ng-change="toggleAll()" ng-model="vm.selectedAll" id="select_all" value="" />
 </script>
 <script type="text/ng-template" id="bulkActions.html">
     <div class="text-center">
@@ -25,7 +25,15 @@
                 <span class="caret"></span>
             </button>
             <ul class="dropdown-menu pull-right" role="menu">
-                <li><a ng-click="bulkAction('delete')" href="javascript:void(0);">Delete</a>
+                <li>
+                	<a ng-click="bulkAction('read')" href="javascript:void(0);">Mark as read</a>
+            	</li>
+            	<li>
+                	<a ng-click="bulkAction('unread')" href="javascript:void(0);">Mark as unread</a>
+            	</li>
+            	<li>
+                	<a ng-click="bulkAction('delete')" href="javascript:void(0);">Delete</a>
+            	</li>
             </ul>
         </div>
     </div>
@@ -35,28 +43,37 @@
 		<div class="panel panel-default">
 			<!-- /.panel-heading -->
 			<div class="panel-body">
-				<div ng-show="selecteds.length > 0" class="alert alert-warning">
-                    <strong>{{ selectedAllPages ? gridTotal : selecteds.length}}/{{gridTotal}}</strong> items selected.
-                    <a ng-show="!selectedAllPages" ng-click="toggleSelectAllPages($event)" href="#" class="alert-link">Select all pages</a>
-                    <a ng-show="selectedAllPages" ng-click="toggleSelectAllPages($event)" href="#" class="alert-link">Unselect all</a>
+				<div ng-show="stats.errors > 0 && !closedUnreadMsg" class="alert alert-info">
+					<i class="fa fa-exclamation-circle" aria-hidden="true"></i>&nbsp;
+					<strong>{{stats.errors}}</strong> new Errors!
+					<button ng-click="closedUnreadMsg = true" type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				</div>
+				<div class="alert alert-warning">
+                    <strong>{{ vm.selectedAllPages ? gridTotal : selecteds.length}}/{{gridTotal}}</strong> items selected.
+                    <a ng-show="!vm.selectedAllPages" ng-click="toggleSelectAllPages($event)" href="#" class="alert-link">Select all pages</a>
+                    <a ng-show="vm.selectedAllPages" ng-click="toggleSelectAllPages($event)" href="#" class="alert-link">Unselect all</a>
                 </div>
 				<table class="resp table table-bordered table-hover" ng-table="gridErrors" show-filter="false">
-					<tr ng-repeat="error in $data" class="active">
+					<tr ng-repeat="error in $data" ng-class="{active: !error._new}">
 						<td header="'bulkSelection.html'" class="center center-y">
-							<input ng-change="toggleSelection(error)" ng-model="error.isSelected" ng-disabled="selectedAllPages" type="checkbox" />
+							<input ng-change="toggleSelection(error)" ng-model="error.isSelected" ng-disabled="vm.selectedAllPages" type="checkbox" />
 						</td>
 						<td class="break-line" title="'Message'" sortable="'data.message'" ng-bind="error.message"></td>
 						<td class="break-line" title="'URL'"sortable="'url'" ng-bind="error.url"></td>
 						<td class="break-line" title="'Date'" sortable="'data.date'" ng-bind="error.date | AppDate"></td>
 						<td class="break-line" title="'Browser'" ng-bind="error.browser + ' ' +( error.browserVersion || '')"></td>
 						<td class="break-line" title="'OS'" ng-bind="error.os"></td>
+						<td class="break-line center" title="'Status'" sortable="'_new'">
+							<i ng-show="!error._new" class="fa fa-envelope-open-o" aria-hidden="true"></i>
+							<i ng-show="error._new" class="fa fa-envelope-o" aria-hidden="true"></i>
+						</td>
 						<td header="'bulkActions.html'" class="center center-y">
-							<button type="button" ng-click="showDetails(error)" class="btn btn-sm btn-primary">
+							<button title="Show details"type="button" ng-click="showDetails(error)" class="btn btn-sm btn-primary">
 								<i class="fa fa-reorder">
 								</i>
 							</button>
-							<button type="button" ng-click="remove(error)" class="btn btn-sm btn-danger">
-								<i class="fa fa-times">
+							<button title="Delete" type="button" ng-click="remove(error)" class="btn btn-sm btn-danger">
+								<i class="fa fa-trash">
 								</i>
 							</button>
 						</td>

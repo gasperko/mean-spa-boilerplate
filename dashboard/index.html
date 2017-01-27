@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" ng-app="DashboardApp">
 
 <head>
     <!-- <base href="/"> -->
@@ -9,7 +9,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>JSEL - Dashboard</title>
+    <title ng-bind="((stats.errors + stats.events) ? ('('+ (stats.errors + stats.events) + ') ') : '') + 'JSEL - Dashboard'">JSEL - Dashboard</title>
 
     <link rel="stylesheet" href="/dashboard/css/main.css"></head>
 
@@ -22,7 +22,7 @@
 
 </head>
 
-<body ng-app="DashboardApp">
+<body>
 
     <div id="wrapper">
 
@@ -67,12 +67,27 @@
 
     <script src="/dashboard/js/lib/sb-admin-2-custom.js"></script>
 
+    <script type="text/javascript" src="/dashboard/vendor/ace-builds/src-min-noconflict/ace.js"></script>
+
+    <script type="text/javascript" src="/dashboard/vendor/ui-ace/ui-ace.min.js"></script>
+
+    <!--script type="text/javascript" src="bower_components/angular/angular.js"></script>
+    <script type="text/javascript" src="bower_components/angular-ui-ace/ui-ace.js"></script-->
+
     <!-- Custom Theme JavaScript -->
     <!-- script src="../dist/js/sb-admin-2.js"></script -->
 
     <script src="/dashboard/js/application.js"></script>
     <script src="/dashboard/js/templates.js"></script>
 
+    <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+        ga('create', 'UA-67833430-3', 'auto');
+        ga('send', 'pageview');
+    </script>
 
 </body>
 

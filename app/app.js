@@ -89,12 +89,13 @@ angular.module('MainApp', ['ngRoute', 'satellizer', 'ngCookies'])
         }
     })
     .run(function($rootScope, $window, User, $auth) {
+        
         if ($window.localStorage.user) {
             $rootScope.currentUser = JSON.parse($window.localStorage.user);
         }
 
         $rootScope.$on('user/logged', function(){
-            console.info('on user/logged');
+            console.debug('user/logged');
             User.setToken($auth.getToken());
         });
 
@@ -102,5 +103,4 @@ angular.module('MainApp', ['ngRoute', 'satellizer', 'ngCookies'])
             $rootScope.$broadcast('user/logged');
         }
         
-        console.debug(User, $auth.getToken());
     });
