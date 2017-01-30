@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 
 function castIdList(list) {
 	return list = list.map(function(d) {
-		//console.log('d', d);
 		return mongoose.Types.ObjectId(d);
 	});
 }
@@ -63,11 +62,6 @@ BulkAction.prototype.setData = function setData(requestParams) {
 
 					var query = {};
 
-					// this.data = this.data.map(function(d){
-					// 	console.log('d', d);
-					// 	return mongoose.Types.ObjectId(d);
-					// });
-
 					this.data = castIdList(this.data);
 
 					if (!this.all) {
@@ -89,23 +83,6 @@ BulkAction.prototype.setData = function setData(requestParams) {
 						response.send();                  
 				    });
 
-
-					// entity[this.action](
-					// 	query, 
-					// 	{
-					// 		$set: {
-					// 			_new: false
-					// 		}
-					// 	},
-					// 	function(err, errors) {
-
-					// 		if (err) {
-					// 			return response.status(401).send(err);
-					// 		}
-
-					// 		response.send(errors);
-
-					// 	});
 
 				};
 
